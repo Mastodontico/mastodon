@@ -799,7 +799,8 @@ a.status__content__spoiler-link {
 }
 
 .column {
-  width: 330px;
+  min-width: 330px;
+  flex: 1 1 100% !important;
   position: relative;
   box-sizing: border-box;
   display: flex;
@@ -1049,7 +1050,7 @@ a.status__content__spoiler-link {
 }
 
 .scrollable {
-  overflow-y: scroll;
+  overflow-y: auto;
   overflow-x: hidden;
   flex: 1 1 auto;
   -webkit-overflow-scrolling: touch;
