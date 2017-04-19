@@ -1050,7 +1050,7 @@ a.status__content__spoiler-link {
 }
 
 .scrollable {
-  overflow-y: auto;
+  overflow-y: scroll;
   overflow-x: hidden;
   flex: 1 1 auto;
   -webkit-overflow-scrolling: touch;
