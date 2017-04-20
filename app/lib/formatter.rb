@@ -14,21 +14,26 @@ class Formatter
 
     html = status.text
     html = encode_and_link_urls(html)
-    html = simple_format(html, {}, sanitize: false)
-    html = html.delete("\n")
+    html = markdown(html)
+    html = clean_paragraphs(html)
+    #html = simple_format(html, {}, sanitize: false)
     html = link_mentions(html, status.mentions)
     html = link_hashtags(html)
-
     html.html_safe # rubocop:disable Rails/OutputSafety
   end
 
   def reformat(html)
-    sanitize(html, tags: %w[a br p span], attributes: %w[href rel class])
+    sanitize(html, tags: %w(a br p span), attributes: %w(href rel class))
   end
 
   def plaintext(status)
     return status.text if status.local?
     strip_tags(status.text)
+  end
+
+  def clean_paragraphs(html)
+    puts html
+    html.gsub(/<p><\/p>/,"")
   end
 
   def simplified_format(account)
@@ -65,6 +70,35 @@ class Formatter
       indices.last
     end
     result += encode(chars[last_index..-1].join)
+  end
+
+  def markdown(html)
+    # Bold + Italic
+
+    html = html.gsub(/^&gt; (.*?)(\n|$)/m, '</p><blockquote>\1</blockquote><p>')
+
+    renderer = MDRenderer.new(
+      no_links: true,
+      no_styles: true,
+      no_images: true,
+      hard_wrap: true,
+      filter_html: false,
+      escape_html: false
+    )
+    markdown = Redcarpet::Markdown.new(
+      renderer,
+      autolink: true,
+      tables: true,
+      strikethrough: true,
+      fenced_code_blocks: true
+    )
+    html = markdown.render(html)
+
+    html = html.gsub(/<\/blockquote><p><\/p><blockquote>/, '<br>') # Not so cool
+    html = html.gsub(/<br>\n<\/p>/, '</p>')
+    html = html.gsub(/<p><br>\n/, '<p>')
+
+    html
   end
 
   def link_urls(html)
@@ -115,5 +149,19 @@ class Formatter
 
   def mention_html(match, account)
     "#{match.split('@').first}<span class=\"h-card\"><a href=\"#{TagManager.instance.url_for(account)}\" class=\"u-url mention\">@<span>#{account.username}</span></a></span>"
+  end
+end
+
+class MDRenderer < Redcarpet::Render::HTML
+  def header(text, _header_level)
+    text
+  end
+
+  def block_code(code, lang)
+    %(<pre><code class="block-code">#{code}</code></pre>)
+  end
+
+  def codespan(code)
+    %(<code class="inline-code">#{code}</code>)
   end
 end

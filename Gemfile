@@ -62,6 +62,9 @@ gem 'autoprefixer-rails'
 gem 'browserify-rails'
 gem 'react-rails'
 
+# Markdown
+gem 'redcarpet'
+
 group :development, :test do
   gem 'fabrication'
   gem 'fuubar'
