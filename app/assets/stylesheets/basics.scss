@@ -59,94 +59,98 @@ button:focus {
 
 /* Markdown */
 
-em{
-  font-style: italic;
-}
+.status__content {
 
-strong{
-  font-weight: bold;
-}
+  em{
+    font-style: italic;
+  }
 
-code.block-code{
-  display: block;
-  border-left: 2px solid $color4;
-  padding-left: 10px;
-  margin-top: 5px;
-  margin-bottom: 5px;
-  margin-left: 5px;
-}
+  strong{
+    font-weight: bold;
+  }
 
-code.inline-code{
-  color: $color5;
-  background: $color_inlineCode;
-  padding: 0 5px 0 5px;
-}
+  code.block-code{
+    display: block;
+    border-left: 2px solid $color4;
+    padding-left: 10px;
+    margin-top: 5px;
+    margin-bottom: 5px;
+    margin-left: 5px;
+  }
 
-pre{
-  display: inline-block;
-  font-family: 'Roboto Mono', monospace;
-  font-weight: 400;
-}
+  code.inline-code{
+    color: $color5;
+    background: $color_inlineCode;
+    padding: 0 5px 0 5px;
+  }
 
-p ~ blockquote {
-  margin-top: -8px;
-}
+  pre{
+    display: inline-block;
+    font-family: 'Roboto Mono', monospace;
+    font-weight: 400;
+  }
 
-blockquote{
-    padding-left: 8px;
+  p ~ blockquote {
+    margin-top: -8px;
+  }
+
+  blockquote{
+      padding-left: 8px;
+      margin-top: 0.5em;
+      margin-bottom: 0.5em;
+      color: $color3;
+      display: block;
+      border-left: 4px solid $color4;
+  }
+
+  ul{
+    list-style: inside;
+  }
+
+  ul>li>ul{
+    padding-left: 1em;
+    list-style: inside circle;
+  }
+
+  ol{
+    list-style: inside decimal;
+  }
+
+  ol>li>ol{
+    padding-left: 1em;
+  }
+
+
+  table {
     margin-top: 0.5em;
     margin-bottom: 0.5em;
-    color: $color3;
+    color: #3c3c3c;
     display: block;
-    border-left: 4px solid $color4;
-}
+    width: 100%;
+    overflow: auto;
+    border-spacing: 0;
+    border-collapse: collapse;
+  }
 
-ul{
-  list-style: inside;
-}
+  table tr{
+    background-color: #9dcbe9;
+  }
 
-ul>li>ul{
-  padding-left: 1em;
-  list-style: inside circle;
-}
+  table th, table td{
+    padding: 6px 13px;
+    border: 1px solid #477ca5;
+  }
 
-ol{
-  list-style: inside decimal;
-}
+  table th{
+    font-weight: 600;
+  }
 
-ol>li>ol{
-  padding-left: 1em;
-}
+  table thead tr{
+    background-color: #50aae6;
+  }
 
+  td, th{
+    padding: 0;
+  }
 
-table {
-  margin-top: 0.5em;
-  margin-bottom: 0.5em;
-  color: #3c3c3c;
-  display: block;
-  width: 100%;
-  overflow: auto;
-  border-spacing: 0;
-  border-collapse: collapse;
-}
-
-table tr{
-  background-color: #9dcbe9;
-}
-
-table th, table td{
-  padding: 6px 13px;
-  border: 1px solid #477ca5;
-}
-
-table th{
-  font-weight: 600;
-}
-
-table thead tr{
-  background-color: #50aae6;
-}
-
-td, th{
-  padding: 0;
 }
