@@ -15,8 +15,6 @@ class Formatter
     html = status.text
     html = encode_and_link_urls(html)
     html = markdown(html)
-    html = clean_paragraphs(html)
-    #html = simple_format(html, {}, sanitize: false)
     html = link_mentions(html, status.mentions)
     html = link_hashtags(html)
     html.html_safe # rubocop:disable Rails/OutputSafety
@@ -77,7 +75,7 @@ class Formatter
     html = html.gsub(/^&gt; (.*?)(\n|$)/m, '</p><blockquote>\1</blockquote><p>')
 
     renderer = MDRenderer.new(
-      no_links: true,
+      no_links: false,
       no_styles: true,
       no_images: true,
       hard_wrap: true,
@@ -86,7 +84,7 @@ class Formatter
     )
     markdown = Redcarpet::Markdown.new(
       renderer,
-      autolink: true,
+      autolink: false,
       tables: true,
       strikethrough: true,
       fenced_code_blocks: true
@@ -94,8 +92,8 @@ class Formatter
     html = markdown.render(html)
 
     html = html.gsub(/<\/blockquote><p><\/p><blockquote>/, '<br>') # Not so cool
-    html = html.gsub(/<br>\n<\/p>/, '</p>')
-    html = html.gsub(/<p><br>\n/, '<p>')
+    #html = html.gsub(/<br>\n<\/p>/, '</p>')
+    #html = html.gsub(/<p><br>\n/, '<p>')
 
     html
   end
@@ -162,5 +160,9 @@ class MDRenderer < Redcarpet::Render::HTML
 
   def codespan(code)
     %(<code class="inline-code">#{code}</code>)
+  end
+
+  def link(link, title, content)
+    title
   end
 end
