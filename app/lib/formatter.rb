@@ -32,7 +32,6 @@ class Formatter
   end
 
   def clean_paragraphs(html)
-    puts html
     html.gsub(/<p><\/p>/,"")
   end
 

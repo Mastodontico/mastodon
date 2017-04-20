@@ -77,8 +77,9 @@ code.block-code{
 }
 
 code.inline-code{
+  color: $color5;
   background: $color_inlineCode;
-  padding: 5px;
+  padding: 0 5px 0 5px;
 }
 
 pre{
@@ -115,4 +116,37 @@ ol{
 
 ol>li>ol{
   padding-left: 1em;
+}
+
+
+table {
+  margin-top: 0.5em;
+  margin-bottom: 0.5em;
+  color: #3c3c3c;
+  display: block;
+  width: 100%;
+  overflow: auto;
+  border-spacing: 0;
+  border-collapse: collapse;
+}
+
+table tr{
+  background-color: #9dcbe9;
+}
+
+table th, table td{
+  padding: 6px 13px;
+  border: 1px solid #477ca5;
+}
+
+table th{
+  font-weight: 600;
+}
+
+table thead tr{
+  background-color: #50aae6;
+}
+
+td, th{
+  padding: 0;
 }
