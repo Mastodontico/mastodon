@@ -87,7 +87,8 @@ class Formatter
       autolink: false,
       tables: true,
       strikethrough: true,
-      fenced_code_blocks: true
+      fenced_code_blocks: true,
+      space_after_headers: true
     )
     html = markdown.render(html)
 
