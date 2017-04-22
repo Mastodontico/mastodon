@@ -141,7 +141,7 @@ class Formatter
   end
 
   def hashtag_html(match)
-    prefix, affix = match.split('#')
+    prefix, _, affix = match.rpartition('#')
     "#{prefix}<a href=\"#{tag_url(affix.downcase)}\" class=\"mention hashtag\">#<span>#{affix}</span></a>"
   end
 
