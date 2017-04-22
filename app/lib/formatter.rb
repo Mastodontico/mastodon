@@ -55,6 +55,11 @@ class Formatter
     chars = html.to_s.to_char_a
     result = ''
 
+    html_attrs = {
+      target: '_blank',
+      rel: 'nofollow noopener',
+    }
+
     last_index = entities.reduce(0) do |index, entity|
       indices = entity[:indices]
       result += encode(chars[index...indices.first].join)
