@@ -13,7 +13,6 @@ class Formatter
     return reformat(status.content) unless status.local?
 
     html = status.text
-    html = encode_and_link_urls(html)
     html = markdown(html)
     html = link_mentions(html, status.mentions)
     html = link_hashtags(html)
@@ -30,7 +29,7 @@ class Formatter
   end
 
   def clean_paragraphs(html)
-    html.gsub(/<p><\/p>/,"")
+    html.gsub(/<p><\/p>/,'')
   end
 
   def simplified_format(account)
@@ -54,10 +53,6 @@ class Formatter
     entities = entities.sort_by { |entity| entity[:indices].first }
 
     chars = html.to_s.to_char_a
-    html_attrs = {
-      target: '_blank',
-      rel: 'nofollow noopener',
-    }
     result = ''
 
     last_index = entities.reduce(0) do |index, entity|
@@ -74,17 +69,23 @@ class Formatter
 
     html = html.gsub(/^&gt; (.*?)(\n|$)/m, '</p><blockquote>\1</blockquote><p>')
 
+    html_attrs = {
+      target: '_blank',
+      rel: 'nofollow noopener',
+    }
+
     renderer = MDRenderer.new(
       no_links: false,
       no_styles: true,
       no_images: true,
       hard_wrap: true,
       filter_html: false,
-      escape_html: false
+      escape_html: true,
+      link_attributes: html_attrs
     )
     markdown = Redcarpet::Markdown.new(
       renderer,
-      autolink: false,
+      autolink: true,
       tables: true,
       strikethrough: true,
       fenced_code_blocks: true,
@@ -141,7 +142,7 @@ class Formatter
   end
 
   def hashtag_html(match)
-    prefix, _, affix = match.rpartition('#')
+    prefix, affix = match.split('#')
     "#{prefix}<a href=\"#{tag_url(affix.downcase)}\" class=\"mention hashtag\">#<span>#{affix}</span></a>"
   end
 
@@ -165,5 +166,18 @@ class MDRenderer < Redcarpet::Render::HTML
 
   def link(link, title, content)
     title
+  end
+
+  def link_html(url)
+    prefix = url.match(/\Ahttps?:\/\/(www\.)?/).to_s
+    text   = url[prefix.length, 30]
+    suffix = url[prefix.length + 30..-1]
+    cutoff = url[prefix.length..-1].length > 30
+
+    "<span class=\"invisible\">#{prefix}</span><span class=\"#{cutoff ? 'ellipsis' : ''}\">#{text}</span><span class=\"invisible\">#{suffix}</span>"
+  end
+
+  def autolink(link, link_type)
+    "<a href=\"#{link}\" target=\"_blank\" rel=\"nofollow noopener\">#{link_html(link)}</a>"
   end
 end
