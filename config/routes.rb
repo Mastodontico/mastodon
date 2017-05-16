@@ -1,7 +1,7 @@
-
 # frozen_string_literal: true
 
 require 'sidekiq/web'
+require 'sidekiq-scheduler/web'
 
 Rails.application.routes.draw do
   mount LetterOpenerWeb::Engine, at: 'letter_opener' if Rails.env.development?
@@ -63,19 +63,20 @@ Rails.application.routes.draw do
       resources :recovery_codes, only: [:create]
       resource :confirmation, only: [:new, :create]
     end
+
+    resource :follower_domains, only: [:show, :update]
   end
 
   resources :media, only: [:show]
   resources :tags,  only: [:show]
 
   # Remote follow
-  get  :authorize_follow, to: 'authorize_follow#new'
-  post :authorize_follow, to: 'authorize_follow#create'
+  resource :authorize_follow, only: [:show, :create]
 
   namespace :admin do
     resources :pubsubhubbub, only: [:index]
     resources :domain_blocks, only: [:index, :new, :create, :show, :destroy]
-    resources :settings, only: [:index, :update]
+    resource :settings, only: [:edit, :update]
     resources :instances, only: [:index]
 
     resources :reports, only: [:index, :show, :update] do
@@ -86,10 +87,15 @@ Rails.application.routes.draw do
       resource :reset, only: [:create]
       resource :silence, only: [:create, :destroy]
       resource :suspension, only: [:create, :destroy]
+      resource :confirmation, only: [:create]
+    end
+
+    resources :users, only: [] do
+      resource :two_factor_authentication, only: [:destroy]
     end
   end
 
-  get '/admin', to: redirect('/admin/settings', status: 302)
+  get '/admin', to: redirect('/admin/settings/edit', status: 302)
 
   namespace :api do
     # PubSubHubbub outgoing subscriptions
@@ -105,6 +111,13 @@ Rails.application.routes.draw do
     # OEmbed
     get '/oembed', to: 'oembed#show', as: :oembed
 
+    # ActivityPub
+    namespace :activitypub do
+      get '/users/:id/outbox', to: 'outbox#show', as: :outbox
+      get '/statuses/:id', to: 'activities#show_status', as: :status
+      resources :notes, only: [:show]
+    end
+
     # JSON / REST API
     namespace :v1 do
       resources :statuses, only: [:create, :show, :destroy] do
@@ -118,6 +131,8 @@ Rails.application.routes.draw do
           post :unreblog
           post :favourite
           post :unfavourite
+          post :mute
+          post :unmute
         end
       end
 

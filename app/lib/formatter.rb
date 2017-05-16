@@ -1,26 +1,41 @@
 # frozen_string_literal: true
 
 require 'singleton'
+require_relative './sanitize_config'
 
 class Formatter
   include Singleton
   include RoutingHelper
 
   include ActionView::Helpers::TextHelper
-  include ActionView::Helpers::SanitizeHelper
 
-  def format(status)
-    return reformat(status.content) unless status.local?
+  def format(status, attribute = :text, paragraphize = true)
+    if status.reblog?
+      prepend_reblog = status.reblog.account.acct
+      status         = status.proper
+    else
+      prepend_reblog = false
+    end
 
-    html = status.text
-    html = markdown(html)
-    html = link_mentions(html, status.mentions)
-    html = link_hashtags(html)
+    raw_content = status.public_send(attribute)
+
+    return '' if raw_content.blank?
+    return reformat(raw_content) unless status.local?
+
+    linkable_accounts = status.mentions.map(&:account)
+    linkable_accounts << status.account
+
+    html = raw_content
+    html = "RT @#{prepend_reblog} #{html}" if prepend_reblog
+    html = encode_and_link_urls(html, linkable_accounts)
+    html = simple_format(html, {}, sanitize: false) if paragraphize
+    html = html.delete("\n")
+
     html.html_safe # rubocop:disable Rails/OutputSafety
   end
 
   def reformat(html)
-    sanitize(html, tags: %w(a br p span), attributes: %w(href rel class))
+    sanitize(html, Sanitize::Config::MASTODON_STRICT).html_safe # rubocop:disable Rails/OutputSafety
   end
 
   def plaintext(status)
@@ -36,10 +51,14 @@ class Formatter
     return reformat(account.note) unless account.local?
 
     html = encode_and_link_urls(account.note)
-    html = link_accounts(html)
-    html = link_hashtags(html)
+    html = simple_format(html, {}, sanitize: false)
+    html = html.delete("\n")
 
     html.html_safe # rubocop:disable Rails/OutputSafety
+  end
+
+  def sanitize(html, config)
+    Sanitize.fragment(html, config)
   end
 
   private
@@ -48,96 +67,76 @@ class Formatter
     HTMLEntities.new.encode(html)
   end
 
-  def encode_and_link_urls(html)
-    entities = Twitter::Extractor.extract_urls_with_indices(html, extract_url_without_protocol: false)
-    entities = entities.sort_by { |entity| entity[:indices].first }
+  def encode_and_link_urls(html, accounts = nil)
+    entities = Extractor.extract_entities_with_indices(html, extract_url_without_protocol: false)
 
-    chars = html.to_s.to_char_a
-    result = ''
+    rewrite(html.dup, entities) do |entity|
+      if entity[:url]
+        link_to_url(entity)
+      elsif entity[:hashtag]
+        link_to_hashtag(entity)
+      elsif entity[:screen_name]
+        link_to_mention(entity, accounts)
+      end
+    end
+  end
 
-    html_attrs = {
-      target: '_blank',
-      rel: 'nofollow noopener',
-    }
+  def rewrite(text, entities)
+    chars = text.to_s.to_char_a
+
+    # Sort by start index
+    entities = entities.sort_by do |entity|
+      indices = entity.respond_to?(:indices) ? entity.indices : entity[:indices]
+      indices.first
+    end
+
+    result = []
 
     last_index = entities.reduce(0) do |index, entity|
-      indices = entity[:indices]
-      result += encode(chars[index...indices.first].join)
-      result += Twitter::Autolink.send(:link_to_text, entity, link_html(entity[:url]), entity[:url], html_attrs)
+      indices = entity.respond_to?(:indices) ? entity.indices : entity[:indices]
+      result << encode(chars[index...indices.first].join)
+      result << yield(entity)
       indices.last
     end
-    result += encode(chars[last_index..-1].join)
+
+    result << encode(chars[last_index..-1].join)
+
+    result.flatten.join
   end
 
-  def markdown(html)
-    # Bold + Italic
+  def link_to_url(entity)
+    normalized_url = Addressable::URI.parse(entity[:url]).normalize
+    html_attrs     = { target: '_blank', rel: 'nofollow noopener' }
 
-    html = html.gsub(/^&gt; (.*?)(\n|$)/m, '</p><blockquote>\1</blockquote><p>')
-
-    html_attrs = {
-      target: '_blank',
-      rel: 'nofollow noopener',
-    }
-
-    renderer = MDRenderer.new(
-      no_links: false,
-      no_styles: true,
-      no_images: true,
-      hard_wrap: true,
-      filter_html: false,
-      escape_html: true,
-      link_attributes: html_attrs
-    )
-    markdown = Redcarpet::Markdown.new(
-      renderer,
-      autolink: true,
-      tables: true,
-      strikethrough: true,
-      fenced_code_blocks: true,
-      space_after_headers: true
-    )
-    html = markdown.render(html)
-
-    html = html.gsub(/<\/blockquote><p><\/p><blockquote>/, '<br>') # Not so cool
-    #html = html.gsub(/<br>\n<\/p>/, '</p>')
-    #html = html.gsub(/<p><br>\n/, '<p>')
-
-    html
+    Twitter::Autolink.send(:link_to_text, entity, link_html(entity[:url]), normalized_url, html_attrs)
+  rescue Addressable::URI::InvalidURIError
+    encode(entity[:url])
   end
 
-  def link_urls(html)
-    Twitter::Autolink.auto_link_urls(html, url_target: '_blank',
-                                           link_attribute_block: lambda { |_, a| a[:rel] << ' noopener' },
-                                           link_text_block: lambda { |_, text| link_html(text) })
+  def link_to_mention(entity, linkable_accounts)
+    acct = entity[:screen_name]
+
+    return link_to_account(acct) unless linkable_accounts
+
+    account = linkable_accounts.find { |item| TagManager.instance.same_acct?(item.acct, acct) }
+    account ? mention_html(account) : "@#{acct}"
   end
 
-  def link_mentions(html, mentions)
-    html.gsub(Account::MENTION_RE) do |match|
-      acct    = Account::MENTION_RE.match(match)[1]
-      mention = mentions.find { |item| TagManager.instance.same_acct?(item.account.acct, acct) }
+  def link_to_account(acct)
+    username, domain = acct.split('@')
 
-      mention.nil? ? match : mention_html(match, mention.account)
-    end
+    domain  = nil if TagManager.instance.local_domain?(domain)
+    account = Account.find_remote(username, domain)
+
+    account ? mention_html(account) : "@#{acct}"
   end
 
-  def link_accounts(html)
-    html.gsub(Account::MENTION_RE) do |match|
-      acct = Account::MENTION_RE.match(match)[1]
-      username, domain = acct.split('@')
-      domain = nil if TagManager.instance.local_domain?(domain)
-      account = Account.find_remote(username, domain)
-
-      account.nil? ? match : mention_html(match, account)
-    end
-  end
-
-  def link_hashtags(html)
-    html.gsub(Tag::HASHTAG_RE) do |match|
-      hashtag_html(match)
-    end
+  def link_to_hashtag(entity)
+    hashtag_html(entity[:hashtag])
   end
 
   def link_html(url)
+    url    = Addressable::URI.parse(url).display_uri.to_s
     prefix = url.match(/\Ahttps?:\/\/(www\.)?/).to_s
     text   = url[prefix.length, 30]
     suffix = url[prefix.length + 30..-1]
@@ -146,13 +145,12 @@ class Formatter
     "<span class=\"invisible\">#{prefix}</span><span class=\"#{cutoff ? 'ellipsis' : ''}\">#{text}</span><span class=\"invisible\">#{suffix}</span>"
   end
 
-  def hashtag_html(match)
-    prefix, affix = match.split('#')
-    "#{prefix}<a href=\"#{tag_url(affix.downcase)}\" class=\"mention hashtag\">#<span>#{affix}</span></a>"
+  def hashtag_html(tag)
+    "<a href=\"#{tag_url(tag.downcase)}\" class=\"mention hashtag\" rel=\"tag\">#<span>#{tag}</span></a>"
   end
 
-  def mention_html(match, account)
-    "#{match.split('@').first}<span class=\"h-card\"><a href=\"#{TagManager.instance.url_for(account)}\" class=\"u-url mention\">@<span>#{account.username}</span></a></span>"
+  def mention_html(account)
+    "<span class=\"h-card\"><a href=\"#{TagManager.instance.url_for(account)}\" class=\"u-url mention\">@<span>#{account.username}</span></a></span>"
   end
 end
 
