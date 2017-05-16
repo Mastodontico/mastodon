@@ -71,7 +71,7 @@ button:focus {
 
   code.block-code{
     display: block;
-    border-left: 2px solid $color4;
+    border-left: 2px solid $classic-base-color;
     padding-left: 10px;
     margin-top: 5px;
     margin-bottom: 5px;
@@ -79,7 +79,7 @@ button:focus {
   }
 
   code.inline-code{
-    color: $color5;
+    color: $classic-base-color;
     background: $color_inlineCode;
     padding: 0 5px 0 5px;
   }
@@ -98,9 +98,9 @@ button:focus {
       padding-left: 8px;
       margin-top: 0.5em;
       margin-bottom: 0.5em;
-      color: $color3;
+      color: $classic-base-color;
       display: block;
-      border-left: 4px solid $color4;
+      border-left: 4px solid $classic-base-color;
   }
 
   ul{
