@@ -24,7 +24,7 @@ const messages = defineMessages({
 class StatusActionBar extends React.PureComponent {
 
   static contextTypes = {
-    router: PropTypes.object
+    router: PropTypes.object,
   };
 
   static propTypes = {
@@ -40,7 +40,7 @@ class StatusActionBar extends React.PureComponent {
     onMuteConversation: PropTypes.func,
     me: PropTypes.number.isRequired,
     withDismiss: PropTypes.bool,
-    intl: PropTypes.object.isRequired
+    intl: PropTypes.object.isRequired,
   };
 
   handleReplyClick = () => {
@@ -128,9 +128,9 @@ class StatusActionBar extends React.PureComponent {
 
     return (
       <div className='status__action-bar'>
-        <div className='status__action-bar-button-wrapper'><IconButton title={replyTitle} icon={replyIcon} onClick={this.handleReplyClick} /></div>
-        <div className='status__action-bar-button-wrapper'><IconButton disabled={reblogDisabled} active={status.get('reblogged')} title={reblogDisabled ? intl.formatMessage(messages.cannot_reblog) : intl.formatMessage(messages.reblog)} icon={reblogIcon} onClick={this.handleReblogClick} /></div>
-        <div className='status__action-bar-button-wrapper'><IconButton animate={true} active={status.get('favourited')} title={intl.formatMessage(messages.favourite)} icon='star' onClick={this.handleFavouriteClick} className='star-icon' /></div>
+        <IconButton className='status__action-bar-button' title={replyTitle} icon={replyIcon} onClick={this.handleReplyClick} />
+        <IconButton className='status__action-bar-button' disabled={reblogDisabled} active={status.get('reblogged')} title={reblogDisabled ? intl.formatMessage(messages.cannot_reblog) : intl.formatMessage(messages.reblog)} icon={reblogIcon} onClick={this.handleReblogClick} />
+        <IconButton className='status__action-bar-button star-icon' animate={true} active={status.get('favourited')} title={intl.formatMessage(messages.favourite)} icon='star' onClick={this.handleFavouriteClick} />
 
         <div className='status__action-bar-dropdown'>
           <DropdownMenu items={menu} icon='ellipsis-h' size={18} direction="right" ariaLabel="More"/>
