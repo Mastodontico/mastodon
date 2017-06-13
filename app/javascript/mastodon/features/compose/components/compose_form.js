@@ -22,7 +22,8 @@ import ImmutablePureComponent from 'react-immutable-pure-component';
 const messages = defineMessages({
   placeholder: { id: 'compose_form.placeholder', defaultMessage: 'What is on your mind?' },
   spoiler_placeholder: { id: 'compose_form.spoiler_placeholder', defaultMessage: 'Content warning' },
-  publish: { id: 'compose_form.publish', defaultMessage: 'Toot' }
+  publish: { id: 'compose_form.publish', defaultMessage: 'Toot' },
+  publishLoud: { id: 'compose_form.publish_loud', defaultMessage: '{publish}!' },
 });
 
 class ComposeForm extends ImmutablePureComponent {
@@ -52,7 +53,7 @@ class ComposeForm extends ImmutablePureComponent {
   };
 
   static defaultProps = {
-    showSearch: false
+    showSearch: false,
   };
 
   handleChange = (e) => {
@@ -66,7 +67,6 @@ class ComposeForm extends ImmutablePureComponent {
   }
 
   handleSubmit = () => {
-    this.autosuggestTextarea.reset();
     this.props.onSubmit();
   }
 
@@ -119,6 +119,8 @@ class ComposeForm extends ImmutablePureComponent {
 
       this.autosuggestTextarea.textarea.setSelectionRange(selectionStart, selectionEnd);
       this.autosuggestTextarea.textarea.focus();
+    } else if(prevProps.is_submitting && !this.props.is_submitting) {
+      this.autosuggestTextarea.textarea.focus();
     }
   }
 
@@ -143,14 +145,14 @@ class ComposeForm extends ImmutablePureComponent {
     if (this.props.privacy === 'private' || this.props.privacy === 'direct') {
       publishText = <span className='compose-form__publish-private'><i className='fa fa-lock' /> {intl.formatMessage(messages.publish)}</span>;
     } else {
-      publishText = intl.formatMessage(messages.publish) + (this.props.privacy !== 'unlisted' ? '!' : '');
+      publishText = this.props.privacy !== 'unlisted' ? intl.formatMessage(messages.publishLoud, { publish: intl.formatMessage(messages.publish) }) : intl.formatMessage(messages.publish);
     }
 
     return (
       <div className='compose-form'>
         <Collapsable isVisible={this.props.spoiler} fullHeight={50}>
-          <div className="spoiler-input">
-            <input placeholder={intl.formatMessage(messages.spoiler_placeholder)} value={this.props.spoiler_text} onChange={this.handleChangeSpoilerText} onKeyDown={this.handleKeyDown} type="text" className="spoiler-input__input"  id='cw-spoiler-input'/>
+          <div className='spoiler-input'>
+            <input placeholder={intl.formatMessage(messages.spoiler_placeholder)} value={this.props.spoiler_text} onChange={this.handleChangeSpoilerText} onKeyDown={this.handleKeyDown} type='text' className='spoiler-input__input'  id='cw-spoiler-input' />
           </div>
         </Collapsable>
 
@@ -191,7 +193,7 @@ class ComposeForm extends ImmutablePureComponent {
 
           <div className='compose-form__publish'>
             <div className='character-counter__wrapper'><CharacterCounter max={500} text={text} /></div>
-            <div className='compose-form__publish-button-wrapper'><Button text={publishText} onClick={this.handleSubmit} disabled={disabled || this.props.is_uploading || text.replace(/[\uD800-\uDBFF][\uDC00-\uDFFF]/g, "_").length > 500 || (text.length !==0 && text.trim().length === 0)} block /></div>
+            <div className='compose-form__publish-button-wrapper'><Button text={publishText} onClick={this.handleSubmit} disabled={disabled || this.props.is_uploading || text.replace(/[\uD800-\uDBFF][\uDC00-\uDFFF]/g, '_').length > 500 || (text.length !==0 && text.trim().length === 0)} block /></div>
           </div>
         </div>
       </div>

@@ -1,11 +1,11 @@
 import React from 'react';
-import Status from './status';
 import ImmutablePropTypes from 'react-immutable-proptypes';
 import { ScrollContainer } from 'react-router-scroll';
 import PropTypes from 'prop-types';
 import StatusContainer from '../containers/status_container';
 import LoadMore from './load_more';
 import ImmutablePureComponent from 'react-immutable-pure-component';
+import IntersectionObserverWrapper from '../features/ui/util/intersection_observer_wrapper';
 
 class StatusList extends ImmutablePureComponent {
 
@@ -15,17 +15,19 @@ class StatusList extends ImmutablePureComponent {
     onScrollToBottom: PropTypes.func,
     onScrollToTop: PropTypes.func,
     onScroll: PropTypes.func,
+    trackScroll: PropTypes.bool,
     shouldUpdateScroll: PropTypes.func,
     isLoading: PropTypes.bool,
-    isUnread: PropTypes.bool,
     hasMore: PropTypes.bool,
     prepend: PropTypes.node,
-    emptyMessage: PropTypes.node
+    emptyMessage: PropTypes.node,
   };
 
   static defaultProps = {
-    trackScroll: true
+    trackScroll: true,
   };
+
+  intersectionObserverWrapper = new IntersectionObserverWrapper();
 
   handleScroll = (e) => {
     const { scrollTop, scrollHeight, clientHeight } = e.target;
@@ -43,16 +45,29 @@ class StatusList extends ImmutablePureComponent {
 
   componentDidMount () {
     this.attachScrollListener();
+    this.attachIntersectionObserver();
   }
 
   componentDidUpdate (prevProps) {
-    if (this.node.scrollTop > 0 && (prevProps.statusIds.size < this.props.statusIds.size && prevProps.statusIds.first() !== this.props.statusIds.first() && !!this._oldScrollPosition)) {
+    if ((prevProps.statusIds.size < this.props.statusIds.size && prevProps.statusIds.first() !== this.props.statusIds.first() && !!this._oldScrollPosition) && this.node.scrollTop > 0) {
       this.node.scrollTop = this.node.scrollHeight - this._oldScrollPosition;
     }
   }
 
   componentWillUnmount () {
     this.detachScrollListener();
+    this.detachIntersectionObserver();
+  }
+
+  attachIntersectionObserver () {
+    this.intersectionObserverWrapper.connect({
+      root: this.node,
+      rootMargin: '300% 0px',
+    });
+  }
+
+  detachIntersectionObserver () {
+    this.intersectionObserverWrapper.disconnect();
   }
 
   attachScrollListener () {
@@ -73,30 +88,23 @@ class StatusList extends ImmutablePureComponent {
   }
 
   render () {
-    const { statusIds, onScrollToBottom, scrollKey, shouldUpdateScroll, isLoading, isUnread, hasMore, prepend, emptyMessage } = this.props;
+    const { statusIds, onScrollToBottom, scrollKey, trackScroll, shouldUpdateScroll, isLoading, hasMore, prepend, emptyMessage } = this.props;
 
-    let loadMore       = '';
-    let scrollableArea = '';
-    let unread         = '';
+    let loadMore       = null;
+    let scrollableArea = null;
 
     if (!isLoading && statusIds.size > 0 && hasMore) {
       loadMore = <LoadMore onClick={this.handleLoadMore} />;
     }
 
-    if (isUnread) {
-      unread = <div className='status-list__unread-indicator' />;
-    }
-
     if (isLoading || statusIds.size > 0 || !emptyMessage) {
       scrollableArea = (
         <div className='scrollable' ref={this.setRef}>
-          {unread}
-
           <div className='status-list'>
             {prepend}
 
             {statusIds.map((statusId) => {
-              return <StatusContainer key={statusId} id={statusId} />;
+              return <StatusContainer key={statusId} id={statusId} intersectionObserverWrapper={this.intersectionObserverWrapper} />;
             })}
 
             {loadMore}
@@ -111,11 +119,15 @@ class StatusList extends ImmutablePureComponent {
       );
     }
 
-    return (
-      <ScrollContainer scrollKey={scrollKey} shouldUpdateScroll={shouldUpdateScroll}>
-        {scrollableArea}
-      </ScrollContainer>
-    );
+    if (trackScroll) {
+      return (
+        <ScrollContainer scrollKey={scrollKey} shouldUpdateScroll={shouldUpdateScroll}>
+          {scrollableArea}
+        </ScrollContainer>
+      );
+    } else {
+      return scrollableArea;
+    }
   }
 
 }

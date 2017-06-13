@@ -20,7 +20,7 @@
 #  reply                  :boolean          default(FALSE)
 #  favourites_count       :integer          default(0), not null
 #  reblogs_count          :integer          default(0), not null
-#  language               :string           default("en"), not null
+#  language               :string
 #  conversation_id        :integer
 #
 
@@ -28,6 +28,7 @@ class Status < ApplicationRecord
   include Paginable
   include Streamable
   include Cacheable
+  include StatusThreadingConcern
 
   enum visibility: [:public, :unlisted, :private, :direct], _suffix: :visibility
 
@@ -50,13 +51,14 @@ class Status < ApplicationRecord
   has_one :notification, as: :activity, dependent: :destroy
   has_one :preview_card, dependent: :destroy
 
-  validates :uri, uniqueness: true, unless: 'local?'
-  validates :text, presence: true, unless: 'reblog?'
+  validates :uri, uniqueness: true, unless: :local?
+  validates :text, presence: true, unless: :reblog?
   validates_with StatusLengthValidator
-  validates :reblog, uniqueness: { scope: :account }, if: 'reblog?'
+  validates :reblog, uniqueness: { scope: :account }, if: :reblog?
 
-  default_scope { order(id: :desc) }
+  default_scope { recent }
 
+  scope :recent, -> { reorder(id: :desc) }
   scope :remote, -> { where.not(uri: nil) }
   scope :local, -> { where(uri: nil) }
 
@@ -68,8 +70,11 @@ class Status < ApplicationRecord
   scope :excluding_silenced_accounts, -> { left_outer_joins(:account).where(accounts: { silenced: false }) }
   scope :including_silenced_accounts, -> { left_outer_joins(:account).where(accounts: { silenced: true }) }
   scope :not_excluded_by_account, ->(account) { where.not(account_id: account.excluded_from_timeline_account_ids) }
+  scope :not_domain_blocked_by_account, ->(account) { account.excluded_from_timeline_domains.blank? ? left_outer_joins(:account) : left_outer_joins(:account).where('accounts.domain IS NULL OR accounts.domain NOT IN (?)', account.excluded_from_timeline_domains) }
 
   cache_associated :account, :application, :media_attachments, :tags, :stream_entry, mentions: :account, reblog: [:account, :application, :stream_entry, :tags, :media_attachments, mentions: :account], thread: :account
+
+  delegate :domain, to: :account, prefix: true
 
   def reply?
     !in_reply_to_id.nil? || attributes['reply']
@@ -111,34 +116,6 @@ class Status < ApplicationRecord
     private_visibility? || direct_visibility?
   end
 
-  def permitted?(other_account = nil)
-    if direct_visibility?
-      account.id == other_account&.id || mentions.where(account: other_account).exists?
-    elsif private_visibility?
-      account.id == other_account&.id || other_account&.following?(account) || mentions.where(account: other_account).exists?
-    else
-      other_account.nil? || !account.blocking?(other_account)
-    end
-  end
-
-  def ancestors(account = nil)
-    ids      = Rails.cache.fetch("ancestors:#{id}") { (Status.find_by_sql(['WITH RECURSIVE search_tree(id, in_reply_to_id, path) AS (SELECT id, in_reply_to_id, ARRAY[id] FROM statuses WHERE id = ? UNION ALL SELECT statuses.id, statuses.in_reply_to_id, path || statuses.id FROM search_tree JOIN statuses ON statuses.id = search_tree.in_reply_to_id WHERE NOT statuses.id = ANY(path)) SELECT id FROM search_tree ORDER BY path DESC', id]) - [self]).pluck(:id) }
-    statuses = Status.where(id: ids).group_by(&:id)
-    results  = ids.map { |id| statuses[id]&.first }.compact
-    results  = results.reject { |status| filter_from_context?(status, account) }
-
-    results
-  end
-
-  def descendants(account = nil)
-    ids      = (Status.find_by_sql(['WITH RECURSIVE search_tree(id, path) AS (SELECT id, ARRAY[id] FROM statuses WHERE id = ? UNION ALL SELECT statuses.id, path || statuses.id FROM search_tree JOIN statuses ON statuses.in_reply_to_id = search_tree.id WHERE NOT statuses.id = ANY(path)) SELECT id FROM search_tree ORDER BY path', id]) - [self]).pluck(:id)
-    statuses = Status.where(id: ids).group_by(&:id)
-    results  = ids.map { |id| statuses[id].first }
-    results  = results.reject { |status| filter_from_context?(status, account) }
-
-    results
-  end
-
   def non_sensitive_with_media?
     !sensitive? && media_attachments.any?
   end
@@ -149,8 +126,8 @@ class Status < ApplicationRecord
   before_validation :set_conversation
 
   class << self
-    def in_allowed_languages(account)
-      where(language: account.allowed_languages)
+    def not_in_filtered_languages(account)
+      where.not(language: account.filtered_languages)
     end
 
     def as_home_timeline(account)
@@ -160,13 +137,13 @@ class Status < ApplicationRecord
     def as_public_timeline(account = nil, local_only = false)
       query = timeline_scope(local_only).without_replies
 
-      apply_timeline_filters(query, account)
+      apply_timeline_filters(query, account, local_only)
     end
 
     def as_tag_timeline(tag, account = nil, local_only = false)
       query = timeline_scope(local_only).tagged_with(tag)
 
-      apply_timeline_filters(query, account)
+      apply_timeline_filters(query, account, local_only)
     end
 
     def as_outbox_timeline(account)
@@ -230,17 +207,18 @@ class Status < ApplicationRecord
         .without_reblogs
     end
 
-    def apply_timeline_filters(query, account)
+    def apply_timeline_filters(query, account, local_only)
       if account.nil?
         filter_timeline_default(query)
       else
-        filter_timeline_for_account(query, account)
+        filter_timeline_for_account(query, account, local_only)
       end
     end
 
-    def filter_timeline_for_account(query, account)
+    def filter_timeline_for_account(query, account, local_only)
       query = query.not_excluded_by_account(account)
-      query = query.in_allowed_languages(account) if account.allowed_languages.present?
+      query = query.not_domain_blocked_by_account(account) unless local_only
+      query = query.not_in_filtered_languages(account) if account.filtered_languages.present?
       query.merge(account_silencing_filter(account))
     end
 
@@ -289,9 +267,5 @@ class Status < ApplicationRecord
     else
       thread.account_id
     end
-  end
-
-  def filter_from_context?(status, account)
-    account&.blocking?(status.account_id) || account&.muting?(status.account_id) || (status.account.silenced? && !account&.following?(status.account_id)) || !status.permitted?(account)
   end
 end
