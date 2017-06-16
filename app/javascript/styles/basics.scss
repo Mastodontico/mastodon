@@ -1,6 +1,6 @@
 body {
 font-family: 'mastodon-font-sans-serif', sans-serif;
-  background: linear-gradient(transparentize($ui-base-color,0.05), transparentize($ui-base-color,0.1)), image-url('background-photo.jpeg');
+  background: linear-gradient(transparentize($ui-base-color,0.05), transparentize($ui-base-color,0.1)), url('../images/background-photo.jpg');
   background-size: cover;
   background-attachment: fixed;
   font-size: 13px;
@@ -66,6 +66,8 @@ button {
 
 .status__content {
 
+  font-family: "Roboto";
+
   em{
     font-style: italic;
   }
@@ -76,7 +78,7 @@ button {
 
   code.block-code{
     display: block;
-    border-left: 2px solid $classic-base-color;
+    border-left: 2px solid $ui-highlight-color;
     padding-left: 10px;
     margin-top: 5px;
     margin-bottom: 5px;
@@ -84,7 +86,7 @@ button {
   }
 
   code.inline-code{
-    color: $classic-base-color;
+    color: $white;
     background: $color_inlineCode;
     padding: 0 5px 0 5px;
   }
@@ -103,9 +105,9 @@ button {
       padding-left: 8px;
       margin-top: 0.5em;
       margin-bottom: 0.5em;
-      color: $classic-base-color;
+      color: $ui-primary-color;
       display: block;
-      border-left: 4px solid $classic-base-color;
+      border-left: 4px solid $ui-primary-color;
   }
 
   ul{

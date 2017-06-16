@@ -1260,7 +1260,7 @@
 
 .columns-area {
   display: flex;
-  flex: 1 1 auto;
+  flex: auto;
   flex-direction: row;
   justify-content: flex-start;
   overflow-x: auto;
@@ -1295,7 +1295,7 @@
 }
 
 .drawer {
-  width: 300px;
+  flex: 2;
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
@@ -1304,7 +1304,7 @@
 
 .drawer__tab {
   display: block;
-  flex: 1 1 auto;
+  flex: auto;
   padding: 15px;
   padding-bottom: 13px;
   color: $ui-primary-color;
@@ -1316,7 +1316,7 @@
 
 .column,
 .drawer {
-  flex: 1 1 100%;
+  flex: auto;
   overflow: hidden;
   @supports(display: grid) { // hack to fix Chrome <57
     contain: strict;
@@ -1358,13 +1358,14 @@
 
   .column,
   .drawer {
-    flex: 0 0 auto;
+    flex: auto;
     padding: 10px;
     padding-left: 5px;
     padding-right: 5px;
 
     &:first-child {
       padding-left: 10px;
+      flex: 1.5;
     }
 
     &:last-child {
@@ -2371,6 +2372,8 @@ button.icon-button.active i.fa-retweet {
   color: lighten($ui-base-color, 20%);
   background: $ui-base-color;
   text-align: center;
+  overflow-y: scroll;
+  overflow-x: hidden;
   padding: 20px;
   font-size: 15px;
   font-weight: 400;
