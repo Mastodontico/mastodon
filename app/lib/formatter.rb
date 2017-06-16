@@ -26,8 +26,9 @@ class Formatter
 
     html = raw_content
     html = "RT @#{prepend_reblog} #{html}" if prepend_reblog
+    html = markdown(html)
     html = encode_and_link_urls(html, linkable_accounts)
-    html = simple_format(html, {}, sanitize: false)
+    #html = simple_format(html, {}, sanitize: false)
     html = html.delete("\n")
 
     html.html_safe # rubocop:disable Rails/OutputSafety
@@ -68,8 +69,10 @@ class Formatter
 
   def encode_and_link_urls(html, accounts = nil)
     entities = Extractor.extract_entities_with_indices(html, extract_url_without_protocol: false)
+    html
 
-    rewrite(html.dup, entities) do |entity|
+    rewrite(html, entities) do |entity|
+      puts entity
       if entity[:url]
         link_to_url(entity)
       elsif entity[:hashtag]
@@ -82,7 +85,7 @@ class Formatter
 
   def rewrite(text, entities)
     chars = text.to_s.to_char_a
-
+    puts text
     # Sort by start index
     entities = entities.sort_by do |entity|
       indices = entity.respond_to?(:indices) ? entity.indices : entity[:indices]
@@ -93,12 +96,12 @@ class Formatter
 
     last_index = entities.reduce(0) do |index, entity|
       indices = entity.respond_to?(:indices) ? entity.indices : entity[:indices]
-      result << encode(chars[index...indices.first].join)
+      result << chars[index...indices.first].join
       result << yield(entity)
       indices.last
     end
 
-    result << encode(chars[last_index..-1].join)
+    result << chars[last_index..-1].join #encode(chars[last_index..-1].join)
 
     result.flatten.join
   end
@@ -150,6 +153,40 @@ class Formatter
 
   def mention_html(account)
     "<span class=\"h-card\"><a href=\"#{TagManager.instance.url_for(account)}\" class=\"u-url mention\">@<span>#{account.username}</span></a></span>"
+  end
+
+  def markdown(html)
+    # Bold + Italic
+
+    html = html.gsub(/^&gt; (.*?)(\n|$)/m, '</p><blockquote>\1</blockquote><p>')
+
+    html_attrs = {
+      target: '_blank',
+      rel: 'nofollow noopener',
+    }
+
+    renderer = MDRenderer.new(
+      no_links: false,
+      no_styles: true,
+      no_images: true,
+      hard_wrap: true,
+      filter_html: false,
+      escape_html: true,
+      link_attributes: html_attrs
+    )
+
+    markdown = Redcarpet::Markdown.new(
+      renderer,
+      autolink: false,
+      tables: true,
+      strikethrough: true,
+      fenced_code_blocks: true,
+      space_after_headers: true
+    )
+    html = markdown.render(html)
+
+    html = html.gsub(/<\/blockquote><p><\/p><blockquote>/, '<br>') # Not so cool
+    html
   end
 end
 

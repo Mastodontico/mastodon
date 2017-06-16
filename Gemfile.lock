@@ -332,6 +332,7 @@ GEM
     rainbow (2.2.2)
       rake
     rake (12.0.0)
+    redcarpet (3.4.0)
     redis (3.3.3)
     redis-actionpack (5.0.1)
       actionpack (>= 4.0, < 6)
@@ -535,6 +536,7 @@ DEPENDENCIES
   rails-controller-testing (~> 1.0)
   rails-i18n (~> 5.0)
   rails-settings-cached (~> 0.6)
+  redcarpet (~> 3.4.0)
   redis (~> 3.3)
   redis-namespace (~> 1.5)
   redis-rails (~> 5.0)
